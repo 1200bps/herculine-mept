@@ -102,10 +102,11 @@ unsigned long long int freqStdby = 40000000;
 // Length of space between letters, *not* including
 // the no-carrier at the end of the preceding symbol:
 #define LEN_SPC_DFCW 7500
+// TODO: make it easier to change the DFCW on/off ratio
 
 // Messages to transmit every beacon cycle:
-char messageFSKCW[ ] = "|N0CALL_";
-char messageDFCW[ ]  = "N0CALL";
+char messageFSKCW[ ] = "|N0CAL_";
+char messageDFCW[ ]  = "N0CAL";
 /*
      Special characters:
         ' ' --> 6-symbol space
@@ -470,7 +471,7 @@ void modeSwitch()
 
 
 // This runs more or less every time we receive a new NMEA packet
-// from the GPS; any GPS-related logic, regular console messages, or
+// from the GPS; any GPS-related logic, routine console messages, or
 // low-frequency input polling (e.g. a voltage or temperature
 // sensor for telemetry) could go here.
 void gpsLoop()
@@ -505,7 +506,7 @@ void loop()
   while (ss.available() > 0)
     gps.encode(ss.read());
 
-  // Check GPS connection on power-up, inform user if we're not getting data,
+  // Check GPS connection on power-up and inform user if we're not getting data,
   // or skip check if debugForceTransmit == false
   // TODO: monitor connection continuously, check for valid GPS fix (>=4 satellites)
   if (gps.charsProcessed() < 10 && millis() > 10000 && gpsConnection == true && !debugForceTransmit) {

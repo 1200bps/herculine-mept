@@ -1,6 +1,6 @@
 ![image](docs/hardware-before-enclosure.jpg)
 
-*Image: the beacon hardware and GPS module on a breadboard, not mounted in a project box yet.*
+![image](docs/grabber-example.png)
 
 ----
 
@@ -16,8 +16,8 @@ Key differences include DFCW functionality (of course), omission of LCD-related 
 
 This sketch is tested and known to work with the following hardware:
 
- * Arduino Nano
- * NEO7M and QRP Labs QLG2-SE GPS breakouts
+ * Arduino Nano (5V)
+ * NEO-7M and QRP Labs QLG2-SE GPS breakouts
  * QRP Labs Si5351A breakout
 
 The relevant pin assignments are marked out clearly in the sketch.
