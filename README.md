@@ -1,6 +1,3 @@
-# Herculine I
-## a GPS-timed DFCW and FSKCW MEPT beacon
-
 ![image](docs/hardware-before-enclosure.jpg)
 
 *Image: the beacon hardware and GPS module on a breadboard, not mounted in a project box yet.*
@@ -9,7 +6,7 @@
 
 ## Key points
 
-This is a sketch for a basic, but featureful and highly configurable, manned experimental propagation transmitter or 'MEPT' for the two most popular QRSS modes: dual-frequency CW and frequency-shift-keyed CW. It's usable as-is as a basic QRSS beacon, and should make a good skeleton for building more complex beacon projects with features like sensor data/telemetry. To my knowledge, this is the first Arduino-based DFCW beacon to be published in a web-searchable part of the internet!
+This is a sketch for a basic, but featureful and highly configurable, manned experimental propagation transmitter or 'MEPT' for the two most popular QRSS modes: dual-frequency CW and frequency-shift-keyed CW. It's usable as-is as a basic QRSS beacon, and should make a good skeleton for building more complex beacon projects with features like sensor data/telemetry. To my knowledge, this is the first Arduino-based DFCW beacon to be published publically!
 
 VK3EDW's FSKCW MEPT sketch (which itself borrows code from many other hams) was used as a starting point, and much of the code, especially the Morse character encoding, is calqued from it. [His sketch can be seen here.](https://github.com/vk3edw/QRSS-MEPT-VK3EDW/) Many thanks to John for putting his code online!
 
@@ -38,4 +35,7 @@ By default, this sketch transmits a beacon message every 10 minutes on 7,039,750
 
 This sketch is presented with no explicit license; much of the code is not mine to license, and VK3EDW's sketch is presented with a "do as you want" license (don't mind if I do!). In the spirit of the '90s, this sketch is postcardware: if you find it useful, feel free to mail a postcard, voided QSL, or a photo of your finished project.
 
---... ....-    -.. .    -. -. --... -. -...    . .
+```
+--... ....-    -.. .
+-. -. --... -. -...    . .
+```
