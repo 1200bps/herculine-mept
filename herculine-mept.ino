@@ -1,38 +1,38 @@
 /*
 
 
-                Fresh out of the closet, from the makers of many
-                     questionable decisions, please enjoy...
+               Fresh out of the closet, from the makers of many
+                    questionable decisions, please enjoy...
 
 
-                                 Herculine I
-                           a GPS-timed MEPT beacon
-                             for FSKCW and DFCW
-                               de Brynn NN7NB
+                                Herculine I
+                          a GPS-timed MEPT beacon
+                            for FSKCW and DFCW
+                              de Brynn NN7NB
 
 
-     VK3EDW's FSKCW MEPT sketch was used as a starting point to write this,
-     and much  of the code  (especially  the  Morse character  decoder)  is
-     calqued from it. His sketch:
-     https://github.com/vk3edw/QRSS-MEPT-VK3EDW/
-     Many thanks to John for putting his code online!
+    VK3EDW's FSKCW MEPT sketch was used as a starting point to write this,
+    and much  of the code  (especially  the  Morse character  decoder)  is
+    calqued from it. His sketch:
+    https://github.com/vk3edw/QRSS-MEPT-VK3EDW/
+    Many thanks to John for putting his code online!
 
-     This sketch is usable as-is as a basic QRSS beacon, and should make a
-     good skeleton for building more complex beacon projects.
+    This sketch is usable as-is as a basic QRSS beacon, and should make a
+    good skeleton for building more complex beacon projects.
 
-     Dependencies:
-       * Etherkit Si5351 library
-       * TinyGPS++
+    Dependencies:
+      * Etherkit Si5351 library
+      * TinyGPS++
 
 
 
-     I'd  like to  thank all  my elmers,  all my exes,  deschloroketamine,
-     Judge Schreber's  becoming-woman,  and my  fellow radio  amateurs and
-     superfluous men around the globe. This couldn't have happened without
-     them--for better and for worse!
+    I'd  like to  thank all  my elmers,  all my exes,  deschloroketamine,
+    Judge Schreber's  becoming-woman,  and my  fellow radio  amateurs and
+    superfluous men around the globe. This couldn't have happened without
+    them--for better and for worse!
 
-     --. .-..    . ...    --. ..- -..    -.. -..-
-     --... ....-    . .
+    --. .-..    . ...    --. ..- -..    -.. -..-
+    --... ....-    . .
 
 */
 
@@ -64,15 +64,18 @@ bool debugForceTransmit = false;
 // modes every other 10-minute frame.
 bool modeFSKCW = false;
 
+// Frequency definitions.
+// An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
+// change these to unsigned long longs for use on 6m and above
 // DFCW dit, FSKCW 'space' or key-up (Hz)
-unsigned long long int freqSpace = 7039750;
+unsigned long int freqSpace = 7039750;
 // DFCW dah, FSKCW 'mark' or key-down (Hz)
 // Set the bandwidth of your signal here; standard is 5Hz
-unsigned long long int freqMark = freqSpace + 5ULL;
+unsigned long int freqMark = freqSpace + 5UL;
 // Oscillator is parked here while not beaconing;
 // this improves thermal stability vs. disabling
 // the clock output between beacon frames
-unsigned long long int freqStdby = 40000000;
+unsigned long int freqStdby = 40000000;
 
 // Si5351A eference oscillator freq (Hz);
 // set to 0 (default) or 25MHz for most Si5351 boards (Adafruit,
@@ -231,9 +234,9 @@ void setup()
   digitalWrite(LED_GPS, LOW);
 
   // Convert Hz to hundredths of Hz:
-  freqSpace = freqSpace * 100ULL;
-  freqMark  = freqMark  * 100ULL;
-  freqStdby = freqStdby * 100ULL;
+  freqSpace = freqSpace * 100UL;
+  freqMark  = freqMark  * 100UL;
+  freqStdby = freqStdby * 100UL;
 
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, FREQ_REF_OSC, PPB_CAL);
   si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);  // 8mA is approx. 10dBm into a 50 ohm load
