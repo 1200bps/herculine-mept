@@ -12,7 +12,7 @@
 
 
     VK3EDW's FSKCW MEPT sketch was used as a starting point to write this,
-    and much  of the code  (especially  the  Morse character  decoder)  is
+    and much of the code (especially the Morse character decoder) is
     calqued from it. His sketch:
     https://github.com/vk3edw/QRSS-MEPT-VK3EDW/
     Many thanks to John for putting his code online!
@@ -26,15 +26,18 @@
 
 
 
-    I'd  like to  thank all  my elmers,  all my exes,  deschloroketamine,
-    Judge Schreber's  becoming-woman,  and my  fellow radio  amateurs and
-    superfluous men around the globe. This couldn't have happened without
-    them--for better and for worse!
+    I'd like to thank all my elmers, all my exes, and my community of
+    fellow radio amateurs and superfluous men around the globe. This
+    couldn't have happened without them--for better and for worse!
+
+    This sketch is postcardware: if you find it useful, feel free to mail
+    a postcard, voided QSL, or a photo of your finished project. Beyond
+    that, this sketch is presented with no explicit license.
 
     --. .-..    . ...    --. ..- -..    -.. -..-
     --... ....-    . .
 
-*/
+ */
 
 #include <si5351.h>
 #include <Wire.h>
@@ -62,7 +65,7 @@ bool debugForceTransmit = false;
 // but other logic elsewhere may switch modes at
 // any time. By default, the sketch alternates
 // modes every other 10-minute frame.
-bool modeFSKCW = false;
+bool modeFSKCW = true;
 
 // Frequency definitions.
 // An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
@@ -84,11 +87,10 @@ unsigned long int freqStdby = 40000000;
 // Reference crystal calibration value (parts per billion)
 #define PPB_CAL 181000
 // The standard RX frame length for QRSS is 10 minutes.
-// The beacon will start transmitting this many
-// minutes and seconds past the zeroth second of
-// minutes ending in zero (when the time is XX:X0:00)
-#define FRAME_OFFSET_MIN 1
-#define FRAME_OFFSET_SEC 30
+// The beacon will start transmitting this many minutes
+// past the zeroth second of minutes ending in zero
+// (when the time is XX:X0:00)
+#define FRAME_OFFSET_MIN 2
 
 // FSKCW parameters
 //
@@ -110,7 +112,8 @@ unsigned long int freqStdby = 40000000;
 // Messages to transmit every beacon cycle:
 char messageFSKCW[ ] = "|N0CAL_";
 char messageDFCW[ ]  = "N0CAL";
-/*
+/*   Supported punctuation:
+        '.' ',' '?' '/'
      Special characters:
         ' ' --> 6-symbol space
         '|' --> 4-symbol space
@@ -123,7 +126,7 @@ char messageDFCW[ ]  = "N0CAL";
          4 --> V     9 --> N
          5 --> S     0 --> T
      Just be mindful of how long it takes to transmit your message!
-*/
+ */
 
 
 
@@ -131,15 +134,24 @@ char messageDFCW[ ]  = "N0CAL";
 
 // Peripherals:
 
-// Lit while sending message, may be used to key external PA or TX/RX switch
-#define LED_PTT 4
-// Lit whenever 'key is down' (FSK mark or DFCW symbol high)
+// This line is held HIGH during the beacon's TX cycle, and is used
+// to key an external PA or TX/RX switch
+#define PTT_OUT 4
+
+// Lit while sending message (and while the external PA or TX/RX switch is triggered)
+#define LED_PTT 11
+// Lit while 'key is down' (FSK mark or DFCW symbol high)
 // This is NOT a PTT line
 #define LED_MARK 13
-// Lit when we parse our first valid time packet from the GPS (stays on)
+// Lit once we've parsed our first valid time packet from the GPS (stays on)
 #define LED_GPS 12
 
-// Serial pins to GPS (TX pin is unused)
+// 1PPS input from GPS; not currently used
+// (Why pin D7? In case we do something with PinChangeInterrupt later;
+// there are 3 interrupt vectors--each shared by D0-D7, D8-D13, A0-A5)
+// #define PPS_GPS 7
+
+// Serial pins to GPS (TX pin isn't used by the GPS, could perhaps be used for another peripheral?)
 #define SS_RX 8
 #define SS_TX 9
 
@@ -224,11 +236,14 @@ void setup()
   Serial.begin(9600);  // Si5351A and serial console
   ss.begin(9600);      // GPS
 
-  pinMode(LED_MARK, OUTPUT);
-  digitalWrite(LED_MARK, LOW);
+  pinMode(PTT_OUT, OUTPUT);
+  digitalWrite(PTT_OUT, LOW);
 
   pinMode(LED_PTT, OUTPUT);
   digitalWrite(LED_PTT, LOW);
+
+  pinMode(LED_MARK, OUTPUT);
+  digitalWrite(LED_MARK, LOW);
 
   pinMode(LED_GPS, OUTPUT);
   digitalWrite(LED_GPS, LOW);
@@ -417,7 +432,7 @@ void sendData()
 
   si5351.set_freq(freqSpace, SI5351_CLK0);
   si5351.output_enable(SI5351_CLK0, 1);
-  digitalWrite(LED_PTT, HIGH);
+  digitalWrite(PTT_OUT, HIGH); digitalWrite(LED_PTT, HIGH);
   Serial.println("External PA is keyed");
   delay(10);  // Time for external PA or TX/RX switch to activate
 
@@ -428,7 +443,7 @@ void sendData()
     sendMsg(messageDFCW);
   }
 
-  digitalWrite(LED_PTT, LOW);
+  digitalWrite(PTT_OUT, LOW); digitalWrite(LED_PTT, LOW);
   Serial.println("Unkeyed external PA");
   delay(50);
   si5351.set_freq(freqStdby, SI5351_CLK0);  // We don't want to feed the standby frequency into
@@ -439,18 +454,9 @@ void sendData()
 
 
 
-// This function determines timing of transmission frames.
-// Double-check that your messages are shorter than the gap between TX windows!
-bool gpsTxGate()
+void prepareToTx()
 {
-
-  // Transmit every 10m, or when debugForceTransmit == true
-  if (gps.time.minute() % 10 == FRAME_OFFSET_MIN && gps.time.second() == FRAME_OFFSET_SEC)
-    return true;
-  else if (debugForceTransmit == true)
-    return true;
-  else
-    return false;
+  return;
 }
 
 
@@ -473,27 +479,66 @@ void modeSwitch()
 
 
 
-// This runs more or less every time we receive a new NMEA packet
-// from the GPS; any GPS-related logic, routine console messages, or
-// low-frequency input polling (e.g. a voltage or temperature
-// sensor for telemetry) could go here.
-void gpsLoop()
+// This function determines timing of transmission frames.
+// Return 2 when ready to TX, 1 when it's time to do TX prep, 0 when not time to TX yet
+int gpsTxGate(int minute, int second)
 {
 
-  // Print time in HHMMSSCC format every 5 seconds
-  // TODO: zero pad, convert to HH:MM:SS
-  if (gps.time.second() % 5 == 0)
-    Serial.println(gps.time.value());
+  // TX trigger:
+  // This determines the start time of the beacon transmission itself.
+  if (minute % 10 == FRAME_OFFSET_MIN && second == 0)
+    return 1;
+  else if (debugForceTransmit == true)
+    return 1;
+  
+  // TX prep:
+  // This determines the timing of any "prep work" that needs to happen before
+  // transmitting a frame (e.g. updating the transmitted message with new sensor
+  // data or an updated Maidenhead locator).
+  // This triggers 30 seconds before the next frame:
+  if (minute % 10 == (FRAME_OFFSET_MIN + 9) % 10 && second == 30)
+    return 2;
+  else
+    return 0;
+}
 
-  // Transmit at the appropriate time
-  if (gpsTxGate() == true) {
-    Serial.println("Time to transmit!");
-    sendData();
-    Serial.println("Done transmitting");
-    modeSwitch();
+
+
+
+
+// This runs every time we receive a new NMEA packet from the GPS; any
+// GPS-related logic or routine low-frequency input polling (e.g. a
+// voltage or temperature sensor for telemetry) could go here.
+int gpsLoop()
+{
+
+  int currentHour   = gps.time.hour();
+  int currentMinute = gps.time.minute();
+  int currentSecond = gps.time.second();
+  
+  // Print time in HH:MM:SS format every 5 seconds
+  // There's definitely a cleaner way to do this, but this
+  // way doesn't involve passing char[]s back and forth
+  if (currentSecond % 5 == 0) {
+    if (currentHour < 10) { Serial.print("0"); Serial.print(currentHour); }
+    else { Serial.print(currentHour); }
+    Serial.print(":");
+    if (currentMinute < 10) { Serial.print("0"); Serial.print(currentMinute); }
+    else { Serial.print(currentMinute); }
+    Serial.print(":");
+    if (currentSecond < 10) { Serial.print("0"); Serial.println(currentSecond); }
+    else { Serial.println(currentSecond); }
   }
 
-  delay(250);
+  // Transmit or do TX prep at the appropriate time
+  if (gpsTxGate(currentMinute, currentSecond) == 1) {
+    return 1;
+  }
+  else if (gpsTxGate(currentMinute, currentSecond) == 2) {
+    return 2;
+  }
+  else
+    return 0;
 }
 
 
@@ -518,10 +563,24 @@ void loop()
     digitalWrite(LED_GPS, LOW);
   }
 
-  // If we're getting and decoding valid NMEA packets:
+  int readyToTxOrPrep = 0; // reinitialize this flag on every loop
+  // Every time we get a new NMEA packet, perform GPS-related tasks
+  // and check if it's time to transmit or do TX prep:
   if (gps.time.isUpdated()) {
     gpsConnection = true;
     digitalWrite(LED_GPS, HIGH);
-    gpsLoop();
+    readyToTxOrPrep = gpsLoop();
+    delay(250);
+  }
+
+  if (readyToTxOrPrep == 1) {
+    Serial.println("Time to transmit!");
+    sendData();
+    Serial.println("Done transmitting");
+    modeSwitch();
+  }
+  else if (readyToTxOrPrep == 2) {
+    Serial.println("Transmit in 30 seconds");
+    prepareToTx();
   }
 }
