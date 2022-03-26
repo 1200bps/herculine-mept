@@ -29,7 +29,7 @@ The relevant pin assignments are marked out clearly in the sketch.
 
 ## Usage
 
-By default, this sketch transmits a beacon message every 10 minutes on 7,039,750 Hz, 1 minute and 30 seconds past every minute ending in zero, alternating between DFCW and FSKCW. All of these parameters can be changed easily, either in configuration variables at the top of the sketch or by making small changes to the relevant functions. Information on frequency selection can be found [here](https://swharden.com/blog/2020-10-03-new-age-of-qrss/). (The end user is responsible for selecting a frequency within the privileges of their amateur radio license. and for compliance with relevant regulations regarding spurious emissions.)
+By default, this sketch transmits a beacon message every 10 minutes on 7,039,750 Hz, 2 minutes past every minute ending in zero, alternating between DFCW and FSKCW. All of these parameters can be changed easily, either in configuration variables at the top of the sketch or by making small changes to the relevant functions. Information on frequency selection can be found [here](https://swharden.com/blog/2020-10-03-new-age-of-qrss/). (The end user is responsible for selecting a frequency within the privileges of their amateur radio license. and for compliance with relevant regulations regarding spurious emissions.)
 
 ## License
 
