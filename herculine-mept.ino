@@ -65,7 +65,7 @@ bool debugForceTransmit = false;
 // but other logic elsewhere may switch modes at
 // any time. By default, the sketch alternates
 // modes every other 10-minute frame.
-bool modeFSKCW = true;
+bool modeFSKCW = false;
 
 // Frequency definitions.
 // An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
