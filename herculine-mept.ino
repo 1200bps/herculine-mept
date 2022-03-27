@@ -48,9 +48,9 @@
 
 
 
-// FOR DEBUGGING:
-// When this is set to true, GPS time checks are bypassed and the
-// beacon begins its transmit cycle immediately on power-up.
+// *** FOR DEBUGGING:
+// When this is set to true, the beacon begins its transmit cycle
+// immediately on power-up.
 // Set this to false before you pur your beacon on-air!
 bool debugForceTransmit = false;
 
@@ -58,16 +58,17 @@ bool debugForceTransmit = false;
 
 
 
-// Configuration variables--change these to suit your application:
+// *** Configuration variables--change these to suit your application:
 
 // Message to transmit every beacon cycle.
 // This, plus any extra data you add, may be up to 20 characters long
 // (but realistically, you should keep it shorter).
+// Messages take a lot longer in FSKCW than they do in DFCW!
 char baseMessage[ ]  = "NN7NB ";
 //   Supported punctuation:
 //      '.' ',' '?' '/'
 //   Special characters:
-//      ' ' --> 6-symbol space in FSKCW, 2-symbol space in DFCW
+//      ' ' --> 5-symbol space in FSKCW, 2-symbol space in DFCW
 //      '|' --> 4-symbol space in both modes
 //      '_' --> 1-symbol space in both modes
 //   By the way--if you wish to add non-callsign data here (e.g. sensor data),
@@ -95,12 +96,13 @@ unsigned long int freqSpace = 7039750;
 // DFCW dah, FSKCW 'mark' or key-down (Hz)
 // Set the bandwidth of your signal here; standard is 5Hz
 unsigned long int freqMark = freqSpace + 5UL;
-// Oscillator is parked here while not beaconing;
+// Oscillator is parked here while not transmitting;
 // this improves thermal stability vs. disabling
 // the clock output between beacon frames
-unsigned long int freqStdby = 40000000;
+unsigned long int freqStdby = 30000000;
 
-// Si5351A eference oscillator freq (Hz);
+// Si5351 setup.
+// Reference oscillator freq (Hz);
 // set to 0 (default) or 25MHz for most Si5351 boards (Adafruit,
 // Etherkit, Raduino), or 27MHz on the QRP Labs board
 #define FREQ_REF_OSC 27005000
@@ -110,17 +112,15 @@ unsigned long int freqStdby = 40000000;
 // The beacon will start transmitting this many minutes
 // past the zeroth second of minutes ending in zero
 // (when the time is XX:X0:00)
-#define FRAME_OFFSET_MIN 2
+#define FRAME_OFFSET_MIN 1
 
-// FSKCW parameters
-//
+// FSKCW parameters.
 // Length of one dit (milliseconds); standard is 6000
 #define LEN_DIT_FSKCW 6000
 // Length of one dah (milliseconds)
 #define LEN_DAH_FSKCW 18000
 
-// DFCW parameters
-//
+// DFCW parameters.
 // One DFCW symbol = 3/4 key-down + 1/4 no carrier
 // Length of one quarter-symbol (milliseconds); standard is 2500
 #define LEN_QTR_SYM_DFCW 2500
@@ -133,7 +133,7 @@ unsigned long int freqStdby = 40000000;
 
 
 
-// Peripherals:
+// *** Peripherals:
 
 // This line is held HIGH during the beacon's TX cycle, and is used
 // to key an external PA or TX/RX switch
@@ -141,7 +141,7 @@ unsigned long int freqStdby = 40000000;
 
 // Lit while sending message (and while the external PA or TX/RX switch is triggered)
 #define LED_PTT 11
-// Lit while 'key is down' (FSK mark or DFCW symbol high)
+// Lit while 'key is down' (FSK mark or DFCW symbol on)
 // This is NOT a PTT line
 #define LED_MARK 13
 // Lit once we've parsed our first valid time packet from the GPS (stays on)
@@ -163,6 +163,8 @@ TinyGPSPlus gps;
 
 
 
+
+// *** Structured data:
 
 // Morse encoding table:
 // maps from ASCII chars to an encoded format, which become Morse
@@ -217,7 +219,13 @@ struct t_mtab morsetab[] = {
 #define N_MORSE (sizeof(morsetab)/sizeof(morsetab[0]))
 
 // Cut number table:
-// maps from ASCII numerals to 'cut numbers' (which are ASCII letters)
+// maps from ASCII numerals to 'cut numbers' (which are ASCII letters).
+// 
+// You can reference a cut number by its index, with cutnrtab[int].cutNumber,
+// or by iterating through cutnrtab[i].numeral to find the index of an ASCII numeral,
+// then accessing cutnrtab[i].cutNumber (this is how we use morsetab[]).
+// The first is simpler in general, but the second might be useful when
+// processing strings that are already formatted the way you want them.
 struct t_cutnr {
   char numeral, cutNumber;
 };
@@ -239,7 +247,7 @@ struct t_cutnr cutnrtab[] = {
 
 
 
-// Other global variables:
+// *** Other global variables:
 bool gpsConnection;  // Have we received any valid NMEA packets yet?
 char txMessage[21];  // Transmitted message, reinitialized after every frame,
                      // filled with updated data before the next frame
@@ -290,7 +298,7 @@ void setup()
 
 
 
-// TX a dah or a dit when sendMsg() asks us to:
+// *** TX a dah or a dit when sendMsg() asks us to:
 
 void dahFSKCW()
 {
@@ -344,14 +352,14 @@ void ditDFCW()
 
 
 
-// Decode individual characters into dits and dahs, transmit them:
+// *** Decode individual characters into dits and dahs, transmit them:
 
 void sendFSKCW(char c)
 {
 
   int i;
   if (c == ' ') {
-    delay(6 * LEN_DIT_FSKCW);
+    delay(5 * LEN_DIT_FSKCW);
     return;
   }
   if (c == '|') {
@@ -422,13 +430,13 @@ void sendDFCW(char c)
 
 
 
-// Iterate through message, send ASCII chars to the
-// appropriate decoding function for the selected mode:
+// *** Iterate through message, send ASCII chars to the appropriate decoding function:
 void sendMsg(char *str)
 {
 
   if (modeFSKCW == true) {
     while (*str) {
+      delay(3 * LEN_DIT_FSKCW);  // Initial space symbols
       sendFSKCW(*str++);
     }
   }
@@ -443,7 +451,7 @@ void sendMsg(char *str)
 
 
 
-// Prepare 5351/PA for TX, pass message to sendMsg, then go back into standby after TX:
+// *** Prepare 5351/PA for TX, pass message to sendMsg, then go back into standby after TX:
 
 void doTx()
 {
@@ -451,7 +459,7 @@ void doTx()
   si5351.set_freq(freqSpace, SI5351_CLK0);
   digitalWrite(PTT_OUT, HIGH); digitalWrite(LED_PTT, HIGH);
   Serial.println("External PA is keyed");
-  delay(10);  // Time for external PA or TX/RX switch to activate
+  delay(20);  // Time for external PA or TX/RX switch to activate
 
   sendMsg(txMessage);
 
@@ -466,35 +474,52 @@ void doTx()
 
 
 
-// TX prep:
+// *** TX prep:
 // This runs 30 seconds before the next frame is to be transmitted.
+//
 // The transmitted message is generated here!
-// if you're putting telemetry data in your transmission, add it here;
-// otherwise, just strcat your baseMessage into txMessage (which is
-// reinitialized, full of NULs, after every transmission).
+// If you're putting telemetry data in your transmission, add it here;
+// otherwise, just reinitialize txMessage and strcat your baseMessage into txMessage.
+//
+// In this example, we're transmitting our current ground speed (mph):
 void prepareToTx()
 {
+  
+  // Reinitialize txMessage:
+  memset(txMessage, 0, sizeof(txMessage));
+  
   int currentSpeed = gps.speed.mph();
 
-  char currSpdTens[3];  // in case our speed is > 100 mph (unlikely)
-  char currSpdOnes[2];
+  // Don't transmit our speed if we're not moving
+  if (curentSpeed == 0) {
+    strcat(txMessage, baseMessage);
+    return;
+  }
 
-  itoa(currentSpeed / 10, currSpdTens, 10);
-  itoa(currentSpeed % 10, currSpdOnes, 10);
+  int currSpdTens = (currentSpeed / 10) % 10;  // % 10 to discard hundreds digit above 99 mph
+  int currSpdOnes =        currentSpeed % 10;
+//  int currSpdTens = 6;  // testing
+//  int currSpdOnes = 9;
+
+  char currSpdTensCut[2];
+  char currSpdOnesCut[2];
+
+  currSpdTensCut[0] = cutnrtab[currSpdTens].cutNumber;
+  currSpdTensCut[1] = '\0';
+  currSpdOnesCut[0] = cutnrtab[currSpdOnes].cutNumber;
+  currSpdOnesCut[1] = '\0';
 
   strcat(txMessage, baseMessage);
-  strcat(txMessage, currSpdTens);
-  strcat(txMessage, currSpdOnes);
-
-  Serial.print("Next TX message: ");
-  Serial.println(txMessage);
+  strcat(txMessage, currSpdTensCut);
+  strcat(txMessage, currSpdOnesCut);
+  return;
 }
 
 
 
 
 
-// Mode-switching logic.
+// *** Mode-switching logic.
 // By default, this switches modes after every transmitted
 // frame; you could replace this with a counter, some logic
 // to change modes based on the GPS time or date, a toggle
@@ -503,7 +528,7 @@ void prepareToTx()
 void modeSwitch()
 {
   if (true) {
-//    modeFSKCW = !modeFSKCW;
+    modeFSKCW = !modeFSKCW;
     return;
   }
 }
@@ -512,7 +537,7 @@ void modeSwitch()
 
 
 
-// This function determines timing of transmission frames.
+// *** Transmission frame timing:
 // Return 1 when ready to TX, 2 when it's time to do TX prep, 0 when not time to TX yet
 int gpsTxGate(int minute, int second)
 {
@@ -525,10 +550,7 @@ int gpsTxGate(int minute, int second)
     return 1;
   
   // TX prep:
-  // This determines the timing of any "prep work" that needs to happen before
-  // transmitting a frame (e.g. updating the transmitted message with new sensor
-  // data or an updated Maidenhead locator).
-  // This triggers 30 seconds before the next frame:
+  // This triggers 30 seconds before the next frame.
   if (minute % 10 == (FRAME_OFFSET_MIN + 9) % 10 && second == 30)
     return 2;
   else
@@ -539,8 +561,8 @@ int gpsTxGate(int minute, int second)
 
 
 
-// This runs every time we receive a new NMEA packet from the GPS; any
-// GPS-related logic or routine low-frequency input polling (e.g. a
+// *** This runs every time we receive a new NMEA packet from the GPS.
+// Any GPS-related logic or routine low-frequency input polling (e.g. a
 // voltage or temperature sensor for telemetry) could go here.
 int gpsLoop()
 {
@@ -554,13 +576,11 @@ int gpsLoop()
   // way doesn't involve passing char[]s back and forth.
   if (currentSecond % 5 == 0) {
     if (currentHour < 10) { Serial.print("0"); Serial.print(currentHour); }
-    else { Serial.print(currentHour); }
-    Serial.print(":");
+    else { Serial.print(currentHour); } Serial.print(":");
     if (currentMinute < 10) { Serial.print("0"); Serial.print(currentMinute); }
-    else { Serial.print(currentMinute); }
-    Serial.print(":");
-    if (currentSecond < 10) { Serial.print("0"); Serial.println(currentSecond); }
-    else { Serial.println(currentSecond); }
+    else { Serial.print(currentMinute); } Serial.print(":");
+    if (currentSecond < 10) { Serial.print("0"); Serial.print(currentSecond); }
+    else { Serial.print(currentSecond); } Serial.println();
   }
 
   // Transmit or do TX prep at the appropriate time
@@ -589,7 +609,21 @@ void loop()
     digitalWrite(LED_GPS, LOW);
   }
 
+  // Debug mode:
+  if (debugForceTransmit) {
+    while (!gps.time.isUpdated()) {
+      while (ss.available() > 0)
+        gps.encode(ss.read());
+    }
+    prepareToTx();
+    Serial.println();
+    Serial.println(txMessage);
+    doTx();
+    modeSwitch();
+  }
+
   int readyToTxOrPrep = 0; // reinitialize this flag on every loop
+  
   // Every time we get a new NMEA packet, perform GPS-related tasks
   // and check if it's time to transmit or do TX prep:
   if (gps.time.isUpdated() && !debugForceTransmit) {
@@ -599,18 +633,16 @@ void loop()
     delay(500);
   }
 
-  if (readyToTxOrPrep == 1 || debugForceTransmit) {
-    if (debugForceTransmit)
-      prepareToTx();
+  if (readyToTxOrPrep == 1) {
     Serial.println("Time to transmit!");
     doTx();
     Serial.println("Done transmitting");
     modeSwitch();
-    // Reinitialize txMessage after every transmission:
-    memset(txMessage, 0, sizeof(txMessage));
   }
   else if (readyToTxOrPrep == 2) {
     Serial.println("Transmit in 30 seconds");
     prepareToTx();
+    Serial.print("Next TX message: ");
+    Serial.println(txMessage);
   }
 }

@@ -6,7 +6,7 @@
 
 ## Key points
 
-This is a sketch for a basic, but featureful and highly configurable, manned experimental propagation transmitter or 'MEPT' for the two most popular QRSS modes: dual-frequency CW and frequency-shift-keyed CW. It's usable as-is as a basic QRSS beacon, and should make a good skeleton for building more complex beacon projects with features like sensor data/telemetry. To my knowledge, this is the first Arduino-based DFCW beacon to be published publically!
+This is a sketch for a featureful and highly configurable manned experimental propagation transmitter, or "MEPT," for the two most popular QRSS modes: dual-frequency CW and frequency-shift-keyed CW. It's usable as-is as a basic QRSS beacon, and should make a good skeleton for building more complex beacon projects with features like sensor data/telemetry. To my knowledge, this is the first Arduino-based DFCW beacon to be published publically!
 
 VK3EDW's FSKCW MEPT sketch (which itself borrows code from many other hams) was used as a starting point, and much of the code, especially the Morse character encoding, is calqued from it. [His sketch can be seen here.](https://github.com/vk3edw/QRSS-MEPT-VK3EDW/) Many thanks to John for putting his code online!
 
@@ -29,7 +29,7 @@ The relevant pin assignments are marked out clearly in the sketch.
 
 ## Usage
 
-By default, this sketch transmits a beacon message every 10 minutes on 7,039,750 Hz, 2 minutes past every minute ending in zero, alternating between DFCW and FSKCW. All of these parameters can be changed easily, either in configuration variables at the top of the sketch or by making small changes to the relevant functions. Information on frequency selection can be found [here](https://swharden.com/blog/2020-10-03-new-age-of-qrss/). (The end user is responsible for selecting a frequency within the privileges of their amateur radio license. and for compliance with relevant regulations regarding spurious emissions.)
+By default, this sketch transmits a beacon message every 10 minutes on 7,039,750 Hz, an integer number of minutes past every minute ending in zero, alternating between DFCW and FSKCW. All of these parameters can be changed easily, either in configuration variables at the top of the sketch or by making small changes to the relevant functions. Information on frequency selection can be found [here](https://swharden.com/blog/2020-10-03-new-age-of-qrss/). (The end user is responsible for selecting a frequency within the privileges of their amateur radio license. and for compliance with relevant regulations regarding spurious emissions.)
 
 ## License
 
