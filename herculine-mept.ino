@@ -60,6 +60,26 @@ bool debugForceTransmit = false;
 
 // Configuration variables--change these to suit your application:
 
+// Message to transmit every beacon cycle.
+// This, plus any extra data you add, may be up to 20 characters long
+// (but realistically, you should keep it shorter).
+char baseMessage[ ]  = "NN7NB ";
+//   Supported punctuation:
+//      '.' ',' '?' '/'
+//   Special characters:
+//      ' ' --> 6-symbol space in FSKCW, 2-symbol space in DFCW
+//      '|' --> 4-symbol space in both modes
+//      '_' --> 1-symbol space in both modes
+//   By the way--if you wish to add non-callsign data here (e.g. sensor data),
+//   consider encoding it using abbreviated numbers a/k/a "cut numbers:"
+//       1 --> A     6 --> B
+//       2 --> U     7 --> G
+//       3 --> W     8 --> D
+//       4 --> V     9 --> N
+//       5 --> S     0 --> T
+//   Later on we create a struct that maps from ASCII numerals to their
+//   respective cut numbers.
+
 // Mode selection: true for FSKCW, false for DFCW.
 // This determines the initial mode upon power-up,
 // but other logic elsewhere may switch modes at
@@ -109,25 +129,6 @@ unsigned long int freqStdby = 40000000;
 #define LEN_SPC_DFCW 7500
 // TODO: make it easier to change the DFCW on/off ratio
 
-// Messages to transmit every beacon cycle:
-char messageFSKCW[ ] = "|N0CAL_";
-char messageDFCW[ ]  = "N0CAL";
-/*   Supported punctuation:
-        '.' ',' '?' '/'
-     Special characters:
-        ' ' --> 6-symbol space
-        '|' --> 4-symbol space
-        '_' --> 1-symbol space (good for DFCW)
-     By the way--if you wish to add non-callsign data here (e.g. sensor data),
-     consider encoding it using abbreviated numbers a/k/a "cut numbers:"
-         1 --> A     6 --> B
-         2 --> U     7 --> G
-         3 --> W     8 --> D
-         4 --> V     9 --> N
-         5 --> S     0 --> T
-     Just be mindful of how long it takes to transmit your message!
- */
-
 
 
 
@@ -149,7 +150,7 @@ char messageDFCW[ ]  = "N0CAL";
 // 1PPS input from GPS; not currently used
 // (Why pin D7? In case we do something with PinChangeInterrupt later;
 // there are 3 interrupt vectors--each shared by D0-D7, D8-D13, A0-A5)
-// #define PPS_GPS 7
+//#define PPS_GPS 7
 
 // Serial pins to GPS (TX pin isn't used by the GPS, could perhaps be used for another peripheral?)
 #define SS_RX 8
@@ -167,41 +168,38 @@ TinyGPSPlus gps;
 // maps from ASCII chars to an encoded format, which become Morse
 // characters after some arithmetical voodoo later on.
 // TODO: understand this better, find out where it came from
-
-// The generic struct
 struct t_mtab {
   char c, pattern;
 };
-// The character table.
-// If necessary, comment out unused characters to reduce dynamic memory usage.
+// If necessary, comment out unused characters to reduce dynamic memory usage
 struct t_mtab morsetab[] = {
   //{'.', 106},
   //{',', 115},
   //{'?', 76},
-  //{'/', 41},
+  {'/', 41},
   {'A', 6},
   {'B', 17},
   {'C', 21},
-  //{'D', 9},
+  {'D', 9},
   //{'E', 2},
   //{'F', 20},
-  //{'G', 11},
+  {'G', 11},
   //{'H', 16},
   //{'I', 4},
   //{'J', 30},
   //{'K', 13},
   {'L', 18},
-  //{'M', 7},
+  {'M', 7},
   {'N', 5},
   //{'O', 15},
   //{'P', 22},
   //{'Q', 27},
   //{'R', 10},
-  //{'S', 8},
-  //{'T', 3},
-  //{'U', 12},
-  //{'V', 24},
-  //{'W', 14},
+  {'S', 8},
+  {'T', 3},
+  {'U', 12},
+  {'V', 24},
+  {'W', 14},
   //{'X', 25},
   //{'Y', 29},
   //{'Z', 19},
@@ -216,15 +214,35 @@ struct t_mtab morsetab[] = {
   //{'9', 47},
   {'0', 63}
 };
-
 #define N_MORSE (sizeof(morsetab)/sizeof(morsetab[0]))
 
+// Cut number table:
+// maps from ASCII numerals to 'cut numbers' (which are ASCII letters)
+struct t_cutnr {
+  char numeral, cutNumber;
+};
+struct t_cutnr cutnrtab[] = {
+  {'1', 'A'},
+  {'2', 'U'},
+  {'3', 'W'},
+  {'4', 'V'},
+  {'5', 'S'},
+  {'6', 'B'},
+  {'7', 'G'},
+  {'8', 'D'},
+  {'9', 'N'},
+  {'0', 'T'}
+};
+#define N_CUTNR (sizeof(cutnrtab)/sizeof(cutnrtab[0]))
 
 
 
 
-// Global variables:
+
+// Other global variables:
 bool gpsConnection;  // Have we received any valid NMEA packets yet?
+char txMessage[21];  // Transmitted message, reinitialized after every frame,
+                     // filled with updated data before the next frame
 
 
 
@@ -280,12 +298,9 @@ void dahFSKCW()
   Serial.print("dah ");
   si5351.set_freq(freqMark, SI5351_CLK0);
   digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);
   delay(LEN_DAH_FSKCW);
   digitalWrite(LED_MARK, LOW);
-  si5351.output_enable(SI5351_CLK0, 0);
   si5351.set_freq(freqSpace, SI5351_CLK0);
-  si5351.output_enable(SI5351_CLK0, 1);
   delay(LEN_DIT_FSKCW);
 }
 void ditFSKCW()
@@ -294,12 +309,9 @@ void ditFSKCW()
   Serial.print("dit ");
   si5351.set_freq(freqMark, SI5351_CLK0);
   digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);
   delay(LEN_DIT_FSKCW);
   digitalWrite(LED_MARK, LOW);
-  si5351.output_enable(SI5351_CLK0, 0);
   si5351.set_freq(freqSpace, SI5351_CLK0);
-  si5351.output_enable(SI5351_CLK0, 1);
   delay(LEN_DIT_FSKCW);
 }
 
@@ -309,11 +321,11 @@ void dahDFCW()
   Serial.print("dah ");
   si5351.set_freq(freqMark, SI5351_CLK0);
   digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);
+  si5351.output_enable(SI5351_CLK0, 1);  // Re-enable clock output after previous character
   delay(LEN_QTR_SYM_DFCW * 3);
   digitalWrite(LED_MARK, LOW);
   si5351.output_enable(SI5351_CLK0, 0);  // Disable clock output for inter-symbol gap
-  delay(LEN_QTR_SYM_DFCW * 1);
+  delay(LEN_QTR_SYM_DFCW);
 }
 void ditDFCW()
 {
@@ -321,11 +333,11 @@ void ditDFCW()
   Serial.print("dit ");
   si5351.set_freq(freqSpace, SI5351_CLK0);
   digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);
+  si5351.output_enable(SI5351_CLK0, 1);  // Re-enable clock output after previous character
   delay(LEN_QTR_SYM_DFCW * 3);
   digitalWrite(LED_MARK, LOW);
   si5351.output_enable(SI5351_CLK0, 0);  // Disable clock output for inter-symbol gap
-  delay(LEN_QTR_SYM_DFCW * 1);
+  delay(LEN_QTR_SYM_DFCW);
 }
 
 
@@ -350,6 +362,9 @@ void sendFSKCW(char c)
     delay(1 * LEN_DIT_FSKCW);
     return;
   }
+  if (c == '\0') {
+    return;
+  }
   for (i = 0; i < N_MORSE; i++) {
     if (morsetab[i].c == c) {
       unsigned char p = morsetab[i].pattern;
@@ -372,7 +387,7 @@ void sendDFCW(char c)
 
   int i;
   if (c == ' ') {
-    delay(24 * LEN_QTR_SYM_DFCW);
+    delay(8 * LEN_QTR_SYM_DFCW);
     return;
   }
   if (c == '|') {
@@ -381,6 +396,9 @@ void sendDFCW(char c)
   }
   if (c == '_') {
     delay(4 * LEN_QTR_SYM_DFCW);
+    return;
+  }
+  if (c == '\0') {
     return;
   }
   for (i = 0; i < N_MORSE; i++) {
@@ -404,8 +422,8 @@ void sendDFCW(char c)
 
 
 
-// Iterate through message, send chars to the appropriate decoding function for the selected mode:
-
+// Iterate through message, send ASCII chars to the
+// appropriate decoding function for the selected mode:
 void sendMsg(char *str)
 {
 
@@ -427,21 +445,15 @@ void sendMsg(char *str)
 
 // Prepare 5351/PA for TX, pass message to sendMsg, then go back into standby after TX:
 
-void sendData()
+void doTx()
 {
 
   si5351.set_freq(freqSpace, SI5351_CLK0);
-  si5351.output_enable(SI5351_CLK0, 1);
   digitalWrite(PTT_OUT, HIGH); digitalWrite(LED_PTT, HIGH);
   Serial.println("External PA is keyed");
   delay(10);  // Time for external PA or TX/RX switch to activate
 
-  if (modeFSKCW == true) {
-    sendMsg(messageFSKCW);
-  }
-  else {
-    sendMsg(messageDFCW);
-  }
+  sendMsg(txMessage);
 
   digitalWrite(PTT_OUT, LOW); digitalWrite(LED_PTT, LOW);
   Serial.println("Unkeyed external PA");
@@ -454,9 +466,27 @@ void sendData()
 
 
 
+// TX prep:
+// This runs 30 seconds before the next frame is to be transmitted.
+// if you're putting telemetry data in your transmission, add it here;
+// otherwise, just strcat your baseMessage into txMessage (which is
+// reinitialized, full of NULs, after every transmission).
 void prepareToTx()
 {
-  return;
+  int currentSpeed = gps.speed.mph();
+
+  char currSpdTens[2];
+  char currSpdOnes[2];
+
+  itoa(currentSpeed / 10, currSpdTens, 10);
+  itoa(currentSpeed % 10, currSpdOnes, 10);
+
+  strcat(txMessage, baseMessage);
+  strcat(txMessage, currSpdTens);
+  strcat(txMessage, currSpdOnes);
+
+  Serial.print("Next TX message: ");
+  Serial.println(txMessage);
 }
 
 
@@ -467,11 +497,13 @@ void prepareToTx()
 // By default, this switches modes after every transmitted
 // frame; you could replace this with a counter, some logic
 // to change modes based on the GPS time or date, a toggle
-// switch, or disable mode-switching altogether.
+// switch, replace the bool with an enum, or disable
+// mode-switching altogether.
 void modeSwitch()
 {
   if (true) {
-    modeFSKCW = !modeFSKCW;
+//    modeFSKCW = !modeFSKCW;
+    return;
   }
 }
 
@@ -516,9 +548,9 @@ int gpsLoop()
   int currentMinute = gps.time.minute();
   int currentSecond = gps.time.second();
   
-  // Print time in HH:MM:SS format every 5 seconds
+  // Print time in HH:MM:SS format every 5 seconds.
   // There's definitely a cleaner way to do this, but this
-  // way doesn't involve passing char[]s back and forth
+  // way doesn't involve passing char[]s back and forth.
   if (currentSecond % 5 == 0) {
     if (currentHour < 10) { Serial.print("0"); Serial.print(currentHour); }
     else { Serial.print(currentHour); }
@@ -531,14 +563,15 @@ int gpsLoop()
   }
 
   // Transmit or do TX prep at the appropriate time
-  if (gpsTxGate(currentMinute, currentSecond) == 1) {
-    return 1;
-  }
-  else if (gpsTxGate(currentMinute, currentSecond) == 2) {
-    return 2;
-  }
-  else
-    return 0;
+//  if (gpsTxGate(currentMinute, currentSecond) == 1) {
+//    return 1;
+//  }
+//  else if (gpsTxGate(currentMinute, currentSecond) == 2) {
+//    return 2;
+//  }
+//  else
+//    return 0;
+  return gpsTxGate(currentMinute, currentSecond);
 }
 
 
@@ -566,18 +599,20 @@ void loop()
   int readyToTxOrPrep = 0; // reinitialize this flag on every loop
   // Every time we get a new NMEA packet, perform GPS-related tasks
   // and check if it's time to transmit or do TX prep:
-  if (gps.time.isUpdated()) {
+  if (gps.time.isUpdated() && !debugForceTransmit) {
     gpsConnection = true;
     digitalWrite(LED_GPS, HIGH);
     readyToTxOrPrep = gpsLoop();
-    delay(250);
+    delay(500);
   }
 
   if (readyToTxOrPrep == 1) {
     Serial.println("Time to transmit!");
-    sendData();
+    doTx();
     Serial.println("Done transmitting");
     modeSwitch();
+    // Reinitialize txMessage after every transmission:
+    memset(txMessage, 0, sizeof(txMessage));
   }
   else if (readyToTxOrPrep == 2) {
     Serial.println("Transmit in 30 seconds");
