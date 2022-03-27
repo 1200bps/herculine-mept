@@ -468,6 +468,7 @@ void doTx()
 
 // TX prep:
 // This runs 30 seconds before the next frame is to be transmitted.
+// The transmitted message is generated here!
 // if you're putting telemetry data in your transmission, add it here;
 // otherwise, just strcat your baseMessage into txMessage (which is
 // reinitialized, full of NULs, after every transmission).
@@ -475,7 +476,7 @@ void prepareToTx()
 {
   int currentSpeed = gps.speed.mph();
 
-  char currSpdTens[2];
+  char currSpdTens[3];  // in case our speed is > 100 mph (unlikely)
   char currSpdOnes[2];
 
   itoa(currentSpeed / 10, currSpdTens, 10);
