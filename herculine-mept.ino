@@ -513,7 +513,7 @@ void modeSwitch()
 
 
 // This function determines timing of transmission frames.
-// Return 2 when ready to TX, 1 when it's time to do TX prep, 0 when not time to TX yet
+// Return 1 when ready to TX, 2 when it's time to do TX prep, 0 when not time to TX yet
 int gpsTxGate(int minute, int second)
 {
 
@@ -564,14 +564,6 @@ int gpsLoop()
   }
 
   // Transmit or do TX prep at the appropriate time
-//  if (gpsTxGate(currentMinute, currentSecond) == 1) {
-//    return 1;
-//  }
-//  else if (gpsTxGate(currentMinute, currentSecond) == 2) {
-//    return 2;
-//  }
-//  else
-//    return 0;
   return gpsTxGate(currentMinute, currentSecond);
 }
 
@@ -589,7 +581,7 @@ void loop()
     gps.encode(ss.read());
 
   // Check GPS connection on power-up and inform user if we're not getting data,
-  // or skip check if debugForceTransmit == false
+  // or skip check if debugForceTransmit == true
   // TODO: monitor connection continuously, check for valid GPS fix (>=4 satellites)
   if (gps.charsProcessed() < 10 && millis() > 10000 && gpsConnection == true && !debugForceTransmit) {
     Serial.println("Not receiving packets from GPS;\ncheck connections!");
@@ -607,7 +599,9 @@ void loop()
     delay(500);
   }
 
-  if (readyToTxOrPrep == 1) {
+  if (readyToTxOrPrep == 1 || debugForceTransmit) {
+    if (debugForceTransmit)
+      prepareToTx();
     Serial.println("Time to transmit!");
     doTx();
     Serial.println("Done transmitting");
