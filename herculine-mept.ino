@@ -222,6 +222,7 @@ struct t_cutnr {
   char numeral, cutNumber;
 };
 struct t_cutnr cutnrtab[] = {
+  {'0', 'T'},
   {'1', 'A'},
   {'2', 'U'},
   {'3', 'W'},
@@ -230,8 +231,7 @@ struct t_cutnr cutnrtab[] = {
   {'6', 'B'},
   {'7', 'G'},
   {'8', 'D'},
-  {'9', 'N'},
-  {'0', 'T'}
+  {'9', 'N'}
 };
 #define N_CUTNR (sizeof(cutnrtab)/sizeof(cutnrtab[0]))
 
