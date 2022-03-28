@@ -492,7 +492,7 @@ void prepareToTx()
   int currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
-  if (curentSpeed == 0) {
+  if (currentSpeed == 0) {
     strncpy(txMessage, baseMessage, sizeof(baseMessage));
     return;
   }
