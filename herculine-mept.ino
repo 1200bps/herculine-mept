@@ -287,7 +287,7 @@ void setup()
   si5351.output_enable(SI5351_CLK0, 1);
 
   if (debugForceTransmit == false) {
-    Serial.print("setup() complete, delay for GPS:\n");
+    Serial.print(F("setup() complete, delay for GPS:\n"));
     delay(5000);
   }
 
@@ -458,13 +458,13 @@ void doTx()
 
   si5351.set_freq(freqSpace, SI5351_CLK0);
   digitalWrite(PTT_OUT, HIGH); digitalWrite(LED_PTT, HIGH);
-  Serial.println("External PA is keyed");
+  Serial.println(F("External PA is keyed"));
   delay(20);  // Time for external PA or TX/RX switch to activate
 
   sendMsg(txMessage);
 
   digitalWrite(PTT_OUT, LOW); digitalWrite(LED_PTT, LOW);
-  Serial.println("Unkeyed external PA");
+  Serial.println(F("Unkeyed external PA"));
   delay(50);
   si5351.set_freq(freqStdby, SI5351_CLK0);  // We don't want to feed the standby frequency into
   si5351.output_enable(SI5351_CLK0, 1);     // the PA while it's active
@@ -481,37 +481,33 @@ void doTx()
 // If you're putting telemetry data in your transmission, add it here;
 // otherwise, just reinitialize txMessage and strcat your baseMessage into txMessage.
 //
-// In this example, we're transmitting our current ground speed (mph):
+// In this example, we're transmitting our current two-digit ground speed (mph):
 void prepareToTx()
 {
   
-  // Reinitialize txMessage:
-  memset(txMessage, 0, sizeof(txMessage));
+//  Redundant, left just in case
+//  // Reinitialize txMessage:
+//  memset(txMessage, 0, sizeof(txMessage));
   
   int currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
   if (curentSpeed == 0) {
-    strcat(txMessage, baseMessage);
+    strncpy(txMessage, baseMessage, sizeof(baseMessage));
     return;
   }
 
-  int currSpdTens = (currentSpeed / 10) % 10;  // % 10 to discard hundreds digit above 99 mph
-  int currSpdOnes =        currentSpeed % 10;
-//  int currSpdTens = 6;  // testing
-//  int currSpdOnes = 9;
+  char currSpdCut[3];
+  currSpdCut[0] = cutnrtab[((currentSpeed / 10) % 10)].cutNumber;  // % 10 to discard hundreds digit above 99 mph
+  currSpdCut[1] = cutnrtab[(currentSpeed % 10)].cutNumber;
+  currSpdCut[2] = '\0';
+//  For testing
+//  currSpdCut[0] = cutnrtab[6].cutNumber;
+//  currSpdCut[1] = cutnrtab[9].cutNumber;
+//  currSpdCut[2] = '\0';
 
-  char currSpdTensCut[2];
-  char currSpdOnesCut[2];
-
-  currSpdTensCut[0] = cutnrtab[currSpdTens].cutNumber;
-  currSpdTensCut[1] = '\0';
-  currSpdOnesCut[0] = cutnrtab[currSpdOnes].cutNumber;
-  currSpdOnesCut[1] = '\0';
-
-  strcat(txMessage, baseMessage);
-  strcat(txMessage, currSpdTensCut);
-  strcat(txMessage, currSpdOnesCut);
+  strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
+  strcat(txMessage, currSpdCut);
   return;
 }
 
@@ -604,7 +600,7 @@ void loop()
   // or skip check if debugForceTransmit == true
   // TODO: monitor connection continuously, check for valid GPS fix (>=4 satellites)
   if (gps.charsProcessed() < 10 && millis() > 10000 && gpsConnection == true && !debugForceTransmit) {
-    Serial.println("Not receiving packets from GPS;\ncheck connections!");
+    Serial.println(F("Not receiving packets from GPS;\ncheck connections!"));
     gpsConnection = false;
     digitalWrite(LED_GPS, LOW);
   }
@@ -634,15 +630,15 @@ void loop()
   }
 
   if (readyToTxOrPrep == 1) {
-    Serial.println("Time to transmit!");
+    Serial.println(F("Time to transmit!"));
     doTx();
-    Serial.println("Done transmitting");
+    Serial.println(F("Done transmitting"));
     modeSwitch();
   }
   else if (readyToTxOrPrep == 2) {
-    Serial.println("Transmit in 30 seconds");
+    Serial.println(F("Transmit in 30 seconds"));
     prepareToTx();
-    Serial.print("Next TX message: ");
+    Serial.print(F("Next TX message: "));
     Serial.println(txMessage);
   }
 }
