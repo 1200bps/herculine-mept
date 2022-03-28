@@ -64,7 +64,8 @@ bool debugForceTransmit = false;
 // This, plus any extra data you add, may be up to 20 characters long
 // (but realistically, you should keep it shorter).
 // Messages take a lot longer in FSKCW than they do in DFCW!
-char baseMessage[ ]  = "NN7NB ";
+// A space to separate callsign from telemetry should be added in prepareToTx().
+char baseMessage[ ]  = "NN7NB";
 //   Supported punctuation:
 //      '.' ',' '?' '/'
 //   Special characters:
@@ -86,7 +87,7 @@ char baseMessage[ ]  = "NN7NB ";
 // but other logic elsewhere may switch modes at
 // any time. By default, the sketch alternates
 // modes every other 10-minute frame.
-bool modeFSKCW = false;
+bool modeFSKCW = true;
 
 // Frequency definitions.
 // An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
@@ -489,22 +490,23 @@ void prepareToTx()
 //  // Reinitialize txMessage:
 //  memset(txMessage, 0, sizeof(txMessage));
   
-  int currentSpeed = gps.speed.mph();
+  uint8_t currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
-  if (currentSpeed == 0) {
-    strncpy(txMessage, baseMessage, sizeof(baseMessage));
-    return;
-  }
+//  if (currentSpeed == 0) {
+//    strncpy(txMessage, baseMessage, sizeof(baseMessage));
+//    return;
+//  }
 
-  char currSpdCut[3];
-  currSpdCut[0] = cutnrtab[((currentSpeed / 10) % 10)].cutNumber;  // % 10 to discard hundreds digit above 99 mph
-  currSpdCut[1] = cutnrtab[(currentSpeed % 10)].cutNumber;
-  currSpdCut[2] = '\0';
+  char currSpdCut[4];
+  currSpdCut[0] = ' ';
+  currSpdCut[1] = cutnrtab[((currentSpeed / 10) % 10)].cutNumber;  // % 10 to discard hundreds digit above 99 mph
+  currSpdCut[2] = cutnrtab[(currentSpeed % 10)].cutNumber;
+  currSpdCut[3] = '\0';
 //  For testing
-//  currSpdCut[0] = cutnrtab[6].cutNumber;
-//  currSpdCut[1] = cutnrtab[9].cutNumber;
-//  currSpdCut[2] = '\0';
+//  currSpdCut[1] = cutnrtab[6].cutNumber;
+//  currSpdCut[2] = cutnrtab[9].cutNumber;
+//  currSpdCut[3] = '\0';
 
   strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
   strcat(txMessage, currSpdCut);
@@ -535,7 +537,7 @@ void modeSwitch()
 
 // *** Transmission frame timing:
 // Return 1 when ready to TX, 2 when it's time to do TX prep, 0 when not time to TX yet
-int gpsTxGate(int minute, int second)
+uint8_t gpsTxGate(uint8_t minute, uint8_t second)
 {
 
   // TX trigger:
@@ -560,12 +562,12 @@ int gpsTxGate(int minute, int second)
 // *** This runs every time we receive a new NMEA packet from the GPS.
 // Any GPS-related logic or routine low-frequency input polling (e.g. a
 // voltage or temperature sensor for telemetry) could go here.
-int gpsLoop()
+uint8_t gpsLoop()
 {
 
-  int currentHour   = gps.time.hour();
-  int currentMinute = gps.time.minute();
-  int currentSecond = gps.time.second();
+  uint8_t currentHour   = gps.time.hour();
+  uint8_t currentMinute = gps.time.minute();
+  uint8_t currentSecond = gps.time.second();
   
   // Print time in HH:MM:SS format every 5 seconds.
   // There's definitely a cleaner way to do this, but this
@@ -606,7 +608,7 @@ void loop()
   }
 
   // Debug mode:
-  if (debugForceTransmit) {
+  while (debugForceTransmit) {
     while (!gps.time.isUpdated()) {
       while (ss.available() > 0)
         gps.encode(ss.read());
@@ -618,7 +620,7 @@ void loop()
     modeSwitch();
   }
 
-  int readyToTxOrPrep = 0; // reinitialize this flag on every loop
+  uint8_t readyToTxOrPrep = 0; // reinitialize this flag on every loop
   
   // Every time we get a new NMEA packet, perform GPS-related tasks
   // and check if it's time to transmit or do TX prep:
