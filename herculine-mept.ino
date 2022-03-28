@@ -371,9 +371,6 @@ void sendFSKCW(char c)
     delay(1 * LEN_DIT_FSKCW);
     return;
   }
-  if (c == '\0') {
-    return;
-  }
   for (i = 0; i < N_MORSE; i++) {
     if (morsetab[i].c == c) {
       unsigned char p = morsetab[i].pattern;
@@ -405,9 +402,6 @@ void sendDFCW(char c)
   }
   if (c == '_') {
     delay(4 * LEN_QTR_SYM_DFCW);
-    return;
-  }
-  if (c == '\0') {
     return;
   }
   for (i = 0; i < N_MORSE; i++) {
