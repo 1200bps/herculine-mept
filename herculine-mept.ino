@@ -44,6 +44,8 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
+#include "cw-decoders.h"
+
 
 
 
@@ -59,6 +61,10 @@ bool debugForceTransmit = false;
 
 
 // *** Configuration variables--change these to suit your application:
+// * Some config #defines (frequencies, FSKCW/DFCW timing parameters)
+// * are temporarily in cw-decoders.h; they'll be moved back here,
+// * pending some major architectural changes to move the low-level
+// * transmit routines back here from cw-decoders.cpp.
 
 // Message to transmit every beacon cycle.
 // This, plus any extra data you add, may be up to 20 characters long
@@ -89,19 +95,6 @@ char baseMessage[ ]  = "NN7NB";
 // modes every other 10-minute frame.
 bool modeFSKCW = false;
 
-// Frequency definitions.
-// An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
-// change these to unsigned long longs for use on 6m and above
-// DFCW dit, FSKCW 'space' or key-up (Hz)
-unsigned long int freqSpace = 7039750;
-// DFCW dah, FSKCW 'mark' or key-down (Hz)
-// Set the bandwidth of your signal here; standard is 5Hz
-unsigned long int freqMark = freqSpace + 5UL;
-// Oscillator is parked here while not transmitting;
-// this improves thermal stability vs. disabling
-// the clock output between beacon frames
-unsigned long int freqStdby = 30000000;
-
 // Si5351 setup.
 // Reference oscillator freq (Hz);
 // set to 0 (default) or 25MHz for most Si5351 boards (Adafruit,
@@ -115,109 +108,21 @@ unsigned long int freqStdby = 30000000;
 // (when the time is XX:X0:00)
 #define FRAME_OFFSET_MIN 1
 
-// FSKCW parameters.
-// Length of one dit (milliseconds); standard is 6000
-#define LEN_DIT_FSKCW 6000
-// Length of one dah (milliseconds)
-#define LEN_DAH_FSKCW 18000
-
-// DFCW parameters.
-// One DFCW symbol = 3/4 key-down + 1/4 no carrier
-// Length of one quarter-symbol (milliseconds); standard is 2500
-#define LEN_QTR_SYM_DFCW 2500
-// Length of space between letters, *not* including
-// the no-carrier at the end of the preceding symbol:
-#define LEN_SPC_DFCW 7500
-// TODO: make it easier to change the DFCW on/off ratio
 
 
 
-
-
-// *** Peripherals:
-
-// This line is held HIGH during the beacon's TX cycle, and is used
-// to key an external PA or TX/RX switch
-#define PTT_OUT 4
-
-// Lit while sending message (and while the external PA or TX/RX switch is triggered)
-#define LED_PTT 11
-// Lit while 'key is down' (FSK mark or DFCW symbol on)
-// This is NOT a PTT line
-#define LED_MARK 13
-// Lit once we've parsed our first valid time packet from the GPS (stays on)
-#define LED_GPS 12
-
-// 1PPS input from GPS; not currently used
-// (Why pin D7? In case we do something with PinChangeInterrupt later;
-// there are 3 interrupt vectors--each shared by D0-D7, D8-D13, A0-A5)
-//#define PPS_GPS 7
 
 // Serial pins to GPS (TX pin isn't used by the GPS, could perhaps be used for another peripheral?)
 #define SS_RX 8
 #define SS_TX 9
 
-Si5351 si5351;  // Connected to Arduino's hardware UART. On Nano: A4 --> SDA, A5 --> SCL
+static Si5351 si5351;  // Connected to Arduino's hardware UART. On Nano: A4 --> SDA, A5 --> SCL
 SoftwareSerial ss(SS_RX, SS_TX);
 TinyGPSPlus gps;
 
 
 
 
-
-// *** Structured data:
-
-// Morse encoding table:
-// maps from ASCII chars to an encoded format, which become Morse
-// characters after some arithmetical voodoo later on.
-// TODO: understand this better, find out where it came from
-struct t_mtab {
-  char c, pattern;
-};
-// If necessary, comment out unused characters to reduce dynamic memory usage
-struct t_mtab morsetab[] = {
-  //{'.', 106},
-  //{',', 115},
-  //{'?', 76},
-  {'/', 41},
-  {'A', 6},
-  {'B', 17},
-  {'C', 21},
-  {'D', 9},
-  //{'E', 2},
-  //{'F', 20},
-  {'G', 11},
-  //{'H', 16},
-  //{'I', 4},
-  //{'J', 30},
-  //{'K', 13},
-  {'L', 18},
-  {'M', 7},
-  {'N', 5},
-  //{'O', 15},
-  //{'P', 22},
-  //{'Q', 27},
-  //{'R', 10},
-  {'S', 8},
-  {'T', 3},
-  {'U', 12},
-  {'V', 24},
-  {'W', 14},
-  //{'X', 25},
-  //{'Y', 29},
-  //{'Z', 19},
-  //{'1', 62},
-  //{'2', 60},
-  //{'3', 56},
-  //{'4', 48},
-  //{'5', 32},
-  //{'6', 33},
-  {'7', 35},
-  //{'8', 39},
-  //{'9', 47},
-  {'0', 63}
-};
-#define N_MORSE (sizeof(morsetab)/sizeof(morsetab[0]))
 
 // Cut number table:
 // maps from ASCII numerals to 'cut numbers' (which are ASCII letters).
@@ -275,16 +180,11 @@ void setup()
   pinMode(LED_GPS, OUTPUT);
   digitalWrite(LED_GPS, LOW);
 
-  // Convert Hz to hundredths of Hz:
-  freqSpace = freqSpace * 100UL;
-  freqMark  = freqMark  * 100UL;
-  freqStdby = freqStdby * 100UL;
-
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, FREQ_REF_OSC, PPB_CAL);
   si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);  // 8mA is approx. 10dBm into a 50 ohm load
 
   // Let oscillator start warming up:
-  si5351.set_freq(freqStdby, SI5351_CLK0);
+  si5351.set_freq(FREQ_STDBY, SI5351_CLK0);
   si5351.output_enable(SI5351_CLK0, 1);
 
   if (debugForceTransmit == false) {
@@ -299,138 +199,12 @@ void setup()
 
 
 
-// *** TX a dah or a dit when sendMsg() asks us to:
-
-void dahFSKCW()
-{
-
-  Serial.print("dah ");
-  si5351.set_freq(freqMark, SI5351_CLK0);
-  digitalWrite(LED_MARK, HIGH);
-  delay(LEN_DAH_FSKCW);
-  digitalWrite(LED_MARK, LOW);
-  si5351.set_freq(freqSpace, SI5351_CLK0);
-  delay(LEN_DIT_FSKCW);
-}
-void ditFSKCW()
-{
-
-  Serial.print("dit ");
-  si5351.set_freq(freqMark, SI5351_CLK0);
-  digitalWrite(LED_MARK, HIGH);
-  delay(LEN_DIT_FSKCW);
-  digitalWrite(LED_MARK, LOW);
-  si5351.set_freq(freqSpace, SI5351_CLK0);
-  delay(LEN_DIT_FSKCW);
-}
-
-void dahDFCW()
-{
-
-  Serial.print("dah ");
-  si5351.set_freq(freqMark, SI5351_CLK0);
-  digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);  // Re-enable clock output after previous character
-  delay(LEN_QTR_SYM_DFCW * 3);
-  digitalWrite(LED_MARK, LOW);
-  si5351.output_enable(SI5351_CLK0, 0);  // Disable clock output for inter-symbol gap
-  delay(LEN_QTR_SYM_DFCW);
-}
-void ditDFCW()
-{
-
-  Serial.print("dit ");
-  si5351.set_freq(freqSpace, SI5351_CLK0);
-  digitalWrite(LED_MARK, HIGH);
-  si5351.output_enable(SI5351_CLK0, 1);  // Re-enable clock output after previous character
-  delay(LEN_QTR_SYM_DFCW * 3);
-  digitalWrite(LED_MARK, LOW);
-  si5351.output_enable(SI5351_CLK0, 0);  // Disable clock output for inter-symbol gap
-  delay(LEN_QTR_SYM_DFCW);
-}
-
-
-
-
-
-// *** Decode individual characters into dits and dahs, transmit them:
-
-void sendFSKCW(char c)
-{
-
-  int i;
-  if (c == ' ') {
-    delay(5 * LEN_DIT_FSKCW);
-    return;
-  }
-  if (c == '|') {
-    delay(4 * LEN_DIT_FSKCW);
-    return;
-  }
-  if (c == '_') {
-    delay(1 * LEN_DIT_FSKCW);
-    return;
-  }
-  for (i = 0; i < N_MORSE; i++) {
-    if (morsetab[i].c == c) {
-      unsigned char p = morsetab[i].pattern;
-      while (p != 1) {
-        if (p & 1)
-          dahFSKCW();
-        else
-          ditFSKCW();
-        p = p / 2;
-      }
-      Serial.println();
-      delay(2 * LEN_DIT_FSKCW);
-      return;
-    }
-  }
-}
-
-void sendDFCW(char c)
-{
-
-  int i;
-  if (c == ' ') {
-    delay(8 * LEN_QTR_SYM_DFCW);
-    return;
-  }
-  if (c == '|') {
-    delay(16 * LEN_QTR_SYM_DFCW);
-    return;
-  }
-  if (c == '_') {
-    delay(4 * LEN_QTR_SYM_DFCW);
-    return;
-  }
-  for (i = 0; i < N_MORSE; i++) {
-    if (morsetab[i].c == c) {
-      unsigned char p = morsetab[i].pattern;
-      while (p != 1) {
-        if (p & 1)
-          dahDFCW();
-        else
-          ditDFCW();
-        p = p / 2;
-      }
-      Serial.println();
-      delay(LEN_SPC_DFCW);
-      return;
-    }
-  }
-}
-
-
-
-
-
 // *** Prepare 5351/PA for TX, pass message chars to modulator, then go back into standby after TX:
 
 void doTx(char *msg)
 {
 
-  si5351.set_freq(freqSpace, SI5351_CLK0);
+  si5351.set_freq(FREQ_SPACE, SI5351_CLK0);
   digitalWrite(PTT_OUT, HIGH); digitalWrite(LED_PTT, HIGH);
   Serial.println(F("External PA is keyed"));
   delay(20);  // Time for external PA or TX/RX switch to activate
@@ -451,7 +225,7 @@ void doTx(char *msg)
   digitalWrite(PTT_OUT, LOW); digitalWrite(LED_PTT, LOW);
   Serial.println(F("Unkeyed external PA"));
   delay(50);
-  si5351.set_freq(freqStdby, SI5351_CLK0);  // We don't want to feed the standby frequency into
+  si5351.set_freq(FREQ_STDBY, SI5351_CLK0);  // We don't want to feed the standby frequency into
   si5351.output_enable(SI5351_CLK0, 1);     // the PA while it's active
 }
 
@@ -477,10 +251,10 @@ void prepareToTx()
   uint8_t currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
-  if (currentSpeed == 0) {
-    strncpy(txMessage, baseMessage, sizeof(baseMessage));
-    return;
-  }
+//  if (currentSpeed == 0) {
+//    strncpy(txMessage, baseMessage, sizeof(baseMessage));
+//    return;
+//  }
 
   char currSpdCut[4];
   currSpdCut[0] = ' ';
