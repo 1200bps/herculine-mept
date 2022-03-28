@@ -431,30 +431,9 @@ void sendDFCW(char c)
 
 
 
-// *** Iterate through message, send ASCII chars to the appropriate decoding function:
-void sendMsg(char *str)
-{
+// *** Prepare 5351/PA for TX, pass message chars to modulator, then go back into standby after TX:
 
-  if (modeFSKCW == true) {
-    while (*str) {
-      delay(3 * LEN_DIT_FSKCW);  // Initial space symbols
-      sendFSKCW(*str++);
-    }
-  }
-  else {
-    while (*str) {
-      sendDFCW(*str++);
-    }
-  }
-}
-
-
-
-
-
-// *** Prepare 5351/PA for TX, pass message to sendMsg, then go back into standby after TX:
-
-void doTx()
+void doTx(char *msg)
 {
 
   si5351.set_freq(freqSpace, SI5351_CLK0);
@@ -462,7 +441,18 @@ void doTx()
   Serial.println(F("External PA is keyed"));
   delay(20);  // Time for external PA or TX/RX switch to activate
 
-  sendMsg(txMessage);
+  // Iterate through message, send ASCII chars to the appropriate modulator function:
+  if (modeFSKCW == true) {
+    while (*msg) {
+      delay(3 * LEN_DIT_FSKCW);  // Initial space symbols
+      sendFSKCW(*msg++);
+    }
+  }
+  else {
+    while (*msg) {
+      sendDFCW(*msg++);
+    }
+  }
 
   digitalWrite(PTT_OUT, LOW); digitalWrite(LED_PTT, LOW);
   Serial.println(F("Unkeyed external PA"));
@@ -616,7 +606,7 @@ void loop()
     prepareToTx();
     Serial.println();
     Serial.println(txMessage);
-    doTx();
+    doTx(txMessage);
     modeSwitch();
   }
 
@@ -633,7 +623,7 @@ void loop()
 
   if (readyToTxOrPrep == 1) {
     Serial.println(F("Time to transmit!"));
-    doTx();
+    doTx(txMessage);
     Serial.println(F("Done transmitting"));
     modeSwitch();
   }
