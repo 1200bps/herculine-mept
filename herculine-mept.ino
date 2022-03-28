@@ -87,7 +87,7 @@ char baseMessage[ ]  = "NN7NB";
 // but other logic elsewhere may switch modes at
 // any time. By default, the sketch alternates
 // modes every other 10-minute frame.
-bool modeFSKCW = true;
+bool modeFSKCW = false;
 
 // Frequency definitions.
 // An unsigned long (after multiplying by 100 in setup()) can hold up to ~42MHz;
@@ -222,13 +222,13 @@ struct t_mtab morsetab[] = {
 // Cut number table:
 // maps from ASCII numerals to 'cut numbers' (which are ASCII letters).
 // 
-// You can reference a cut number by its index, with cutnrtab[int].cutNumber,
-// or by iterating through cutnrtab[i].numeral to find the index of an ASCII numeral,
-// then accessing cutnrtab[i].cutNumber (this is how we use morsetab[]).
+// You can reference a cut number by its index, with cutnrtab[int<10].cutnr,
+// or by iterating through cutnrtab[i].numeral to search for an ASCII numeral,
+// then accessing cutnrtab[i].cutnr (this is how we use morsetab[]).
 // The first is simpler in general, but the second might be useful when
 // processing strings that are already formatted the way you want them.
 struct t_cutnr {
-  char numeral, cutNumber;
+  char numeral, cutnr;
 };
 struct t_cutnr cutnrtab[] = {
   {'0', 'T'},
@@ -437,7 +437,7 @@ void doTx(char *msg)
 
   // Iterate through message, send ASCII chars to the appropriate modulator function:
   if (modeFSKCW == true) {
-    while (*msg) {
+    while (*msg) {  // works because txMessage is null-terminated
       delay(3 * LEN_DIT_FSKCW);  // Initial space symbols
       sendFSKCW(*msg++);
     }
@@ -484,12 +484,12 @@ void prepareToTx()
 
   char currSpdCut[4];
   currSpdCut[0] = ' ';
-  currSpdCut[1] = cutnrtab[((currentSpeed / 10) % 10)].cutNumber;  // % 10 to discard hundreds digit above 99 mph
-  currSpdCut[2] = cutnrtab[(currentSpeed % 10)].cutNumber;
+  currSpdCut[1] = cutnrtab[((currentSpeed / 10) % 10)].cutnr;  // % 10 to discard hundreds digit above 99 mph
+  currSpdCut[2] = cutnrtab[(currentSpeed % 10)].cutnr;
   currSpdCut[3] = '\0';
 //  For testing
-//  currSpdCut[1] = cutnrtab[6].cutNumber;
-//  currSpdCut[2] = cutnrtab[9].cutNumber;
+//  currSpdCut[1] = cutnrtab[6].cutnr;
+//  currSpdCut[2] = cutnrtab[9].cutnr;
 //  currSpdCut[3] = '\0';
 
   strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
