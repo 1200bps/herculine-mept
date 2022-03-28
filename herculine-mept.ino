@@ -483,10 +483,10 @@ void prepareToTx()
   uint8_t currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
-//  if (currentSpeed == 0) {
-//    strncpy(txMessage, baseMessage, sizeof(baseMessage));
-//    return;
-//  }
+  if (currentSpeed == 0) {
+    strncpy(txMessage, baseMessage, sizeof(baseMessage));
+    return;
+  }
 
   char currSpdCut[4];
   currSpdCut[0] = ' ';
