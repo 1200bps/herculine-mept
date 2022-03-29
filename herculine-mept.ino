@@ -247,12 +247,12 @@ void prepareToTx()
 //  Redundant, left just in case
 //  // Reinitialize txMessage:
 //  memset(txMessage, 0, sizeof(txMessage));
+  strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
   
   uint8_t currentSpeed = gps.speed.mph();
 
-  // Don't transmit our speed if we're not moving
-//  if (currentSpeed == 0) {
-//    strncpy(txMessage, baseMessage, sizeof(baseMessage));
+  // Don't transmit our speed if we're not moving or we're in FSKCW
+//  if (currentSpeed == 0 || modeFSKCW) {
 //    return;
 //  }
 
@@ -264,9 +264,7 @@ void prepareToTx()
 //  For testing
 //  currSpdCut[1] = cutnrtab[6].cutnr;
 //  currSpdCut[2] = cutnrtab[9].cutnr;
-//  currSpdCut[3] = '\0';
 
-  strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
   strcat(txMessage, currSpdCut);
   return;
 }
@@ -302,7 +300,7 @@ uint8_t gpsTxGate(uint8_t minute, uint8_t second)
   // This determines the start time of the beacon transmission itself.
   if (minute % 10 == FRAME_OFFSET_MIN && second == 0)
     return 1;
-  else if (debugForceTransmit == true)
+  else if (debugForceTransmit)
     return 1;
   
   // TX prep:
@@ -359,7 +357,7 @@ void loop()
   // Check GPS connection on power-up and inform user if we're not getting data,
   // or skip check if debugForceTransmit == true
   // TODO: monitor connection continuously, check for valid GPS fix (>=4 satellites)
-  if (gps.charsProcessed() < 10 && millis() > 10000 && gpsConnection == true && !debugForceTransmit) {
+  if (gps.charsProcessed() < 10 && millis() > 10000 && gpsConnection && !debugForceTransmit) {
     Serial.println(F("Not receiving packets from GPS;\ncheck connections!"));
     gpsConnection = false;
     digitalWrite(LED_GPS, LOW);
@@ -382,14 +380,17 @@ void loop()
   
   // Every time we get a new NMEA packet, perform GPS-related tasks
   // and check if it's time to transmit or do TX prep:
-  if (gps.time.isUpdated() && !debugForceTransmit) {
+  if (gps.time.isUpdated()) {
     gpsConnection = true;
     digitalWrite(LED_GPS, HIGH);
     readyToTxOrPrep = gpsLoop();
     delay(500);
   }
 
-  if (readyToTxOrPrep == 1) {
+  if (readyToTxOrPrep == 0) {
+    return;
+  }
+  else if (readyToTxOrPrep == 1) {
     Serial.println(F("Time to transmit!"));
     doTx(txMessage);
     Serial.println(F("Done transmitting"));
