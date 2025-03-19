@@ -463,15 +463,14 @@ void doTx(char *msg)
 void prepareToTx()
 {
   
-//  Redundant, left just in case
-//  // Reinitialize txMessage:
-//  memset(txMessage, 0, sizeof(txMessage));
+  // Reinitialize txMessage:
+  memset(txMessage, 0, sizeof(txMessage));
   
   uint8_t currentSpeed = gps.speed.mph();
 
   // Don't transmit our speed if we're not moving
   if (currentSpeed == 0) {
-    strncpy(txMessage, baseMessage, sizeof(baseMessage));
+    strlcpy(txMessage, baseMessage, sizeof(baseMessage));
     return;
   }
 
@@ -485,7 +484,7 @@ void prepareToTx()
 //  currSpdCut[2] = cutnrtab[9].cutNumber;
 //  currSpdCut[3] = '\0';
 
-  strncpy(txMessage, baseMessage, sizeof(baseMessage));  // strncpy to reinitialize and copy in one step
+  strlcpy(txMessage, baseMessage, sizeof(baseMessage));
   strcat(txMessage, currSpdCut);
   return;
 }
