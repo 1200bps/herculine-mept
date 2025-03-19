@@ -1,14 +1,10 @@
 /*
 
 
-               Fresh out of the closet, from the makers of many
-                    questionable decisions, please enjoy...
-
-
                                 Herculine I
                           a GPS-timed MEPT beacon
                             for FSKCW and DFCW
-                              de Brynn NN7NB
+                              de Mara NN7NB
 
 
     VK3EDW's FSKCW MEPT sketch was used as a starting point to write this,
@@ -23,8 +19,6 @@
     Dependencies:
       * Etherkit Si5351 library
       * TinyGPS++
-
-
 
     I'd like to thank all my elmers, all my exes, and my community of
     fellow radio amateurs and superfluous men around the globe. This
