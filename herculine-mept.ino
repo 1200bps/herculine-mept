@@ -295,7 +295,7 @@ void setup()
 
 // *** TX a dah or a dit when sendMsg() asks us to:
 
-void dahFSKCW()
+inline void dahFSKCW()
 {
 
   Serial.print("dah ");
@@ -306,7 +306,7 @@ void dahFSKCW()
   si5351.set_freq(freqSpace, SI5351_CLK0);
   delay(LEN_DIT_FSKCW);
 }
-void ditFSKCW()
+inline void ditFSKCW()
 {
 
   Serial.print("dit ");
@@ -317,8 +317,7 @@ void ditFSKCW()
   si5351.set_freq(freqSpace, SI5351_CLK0);
   delay(LEN_DIT_FSKCW);
 }
-
-void dahDFCW()
+inline void dahDFCW()
 {
 
   Serial.print("dah ");
@@ -330,7 +329,7 @@ void dahDFCW()
   si5351.output_enable(SI5351_CLK0, 0);  // Disable clock output for inter-symbol gap
   delay(LEN_QTR_SYM_DFCW);
 }
-void ditDFCW()
+inline void ditDFCW()
 {
 
   Serial.print("dit ");
