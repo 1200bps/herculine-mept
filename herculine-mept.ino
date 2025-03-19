@@ -499,12 +499,9 @@ void prepareToTx()
 // to change modes based on the GPS time or date, a toggle
 // switch, replace the bool with an enum, or disable
 // mode-switching altogether.
-void modeSwitch()
+inline void modeSwitch()
 {
-  if (true) {
-    modeFSKCW = !modeFSKCW;
-    return;
-  }
+  return;
 }
 
 
