@@ -1,6 +1,6 @@
 ![image](docs/hardware-before-enclosure.jpg)
 
-![image](docs/grabber-example.png)
+![image](docs/example-with-telemetry.png)
 
 ----
 
